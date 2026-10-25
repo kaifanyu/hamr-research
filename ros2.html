@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="HAMR caster mobility research: hardware, ROS 2, visual navigation, controllers, and simulation experiments."><title>The ROS 2 system · HAMR</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="assets/site.css"><link rel="stylesheet" href="assets/technical.css"></head>
+<body><a class="skip" href="#main">Skip to content</a><header class="site-header"><div class="header-inner"><a class="brand" href="index.html" aria-label="HAMR project home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-copy">HAMR<small>CASTER MOBILITY RESEARCH</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="ros2.html" aria-current="page">ROS 2</a><a href="vslam.html">VSLAM</a><a href="controllers.html">Controllers</a><a href="experiments.html">Experiments</a></nav></div></header>
+<main id="main" class="technical-page">
+  <header class="page-intro">
+    <p class="eyebrow">01 / Software architecture</p>
+    <h1>From sensing to motion.</h1>
+    <p>A shared ROS 2 interface connects the physical robot, its simulated counterpart, and the measurements used to compare them.</p>
+  </header>
+
+  <section class="section" id="node-graph">
+    <div class="section-heading">
+      <p class="eyebrow">The system at a glance</p>
+      <h2>One control loop. Separate measurement paths.</h2>
+      <p>The diagram brings the hardware, localization, and experiment profiles together. Each run enables the nodes it needs.</p>
+    </div>
+    <div class="tech-legend"><span><i></i>Repository interface</span><span><i class="target-line"></i>Target autonomy integration</span></div>
+    <figure class="figure-panel tech-figure tech-wide">
+      <svg viewBox="0 0 1080 605" role="img" aria-labelledby="ros-graph-title ros-graph-desc">
+        <title id="ros-graph-title">HAMR grouped ROS 2 node and topic graph</title>
+        <desc id="ros-graph-desc">The drive ESP connects by UART to hamr_uros_bridge. Encoder ticks feed holonomic_odom_node and wheel odometry joins IMU data in ekf_filter_node. A waypoint planner sends references to hamr_controller_node, which returns wheel and turret commands to the bridge. D455 images and depth feed RTAB-Map. Dashed target connections add Nav2. Independent H1, H2 and CENTER boards send UDP to caster_encoder_bridge for recording and replay.</desc>
+        <defs><marker id="ros-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6f1d1b"/></marker><marker id="ros-target-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#99582a"/></marker></defs>
+        <rect class="group-box" x="20" y="20" width="240" height="545"/>
+        <rect class="group-box" x="285" y="20" width="260" height="545"/>
+        <rect class="group-box" x="570" y="20" width="245" height="545"/>
+        <rect class="group-box" x="840" y="20" width="220" height="545"/>
+        <text class="svg-label" x="40" y="48">01  ACQUIRE</text><text class="svg-label" x="305" y="48">02  ESTIMATE</text><text class="svg-label" x="590" y="48">03  PLAN &amp; CONTROL</text><text class="svg-label" x="860" y="48">04  OBSERVE</text>
+        <rect class="node-box" x="38" y="76" width="204" height="55"/><text class="svg-title" x="55" y="99">Drive ESP32</text><text class="svg-small" x="55" y="118">Wheel + turret encoders · IMU</text>
+        <path class="wire" d="M140 131 V166" marker-end="url(#ros-arrow)"/><text class="svg-code" x="153" y="153">UART</text>
+        <rect class="node-box" x="38" y="168" width="204" height="61"/><text class="svg-title" x="55" y="192">hamr_uros_bridge</text><text class="svg-small" x="55" y="213">Serial packets ↔ ROS topics</text>
+        <rect class="node-box" x="304" y="80" width="222" height="62"/><text class="svg-title" x="320" y="105">holonomic_odom_node</text><text class="svg-small" x="320" y="126">Encoder motion → odometry</text>
+        <path class="wire" d="M242 185 H272 V111 H304" marker-end="url(#ros-arrow)"/><text class="svg-code" x="280" y="70">/…/encoder_ticks</text>
+        <rect class="node-box" x="304" y="190" width="222" height="61"/><text class="svg-title" x="320" y="215">ekf_filter_node</text><text class="svg-small" x="320" y="236">Wheel velocity + IMU fusion</text>
+        <path class="wire" d="M415 142 V190" marker-end="url(#ros-arrow)"/><text class="svg-code" x="427" y="168">/wheel_odom</text>
+        <path class="wire" d="M242 217 H304" marker-end="url(#ros-arrow)"/><text class="svg-code" x="247" y="239">/imu/data</text>
+        <rect class="node-box" x="590" y="80" width="205" height="62"/><text class="svg-title" x="605" y="105">continuous_waypoint</text><text class="svg-small" x="605" y="126">Smooth, bounded references</text>
+        <rect class="node-box" x="590" y="190" width="205" height="61"/><text class="svg-title" x="605" y="215">hamr_controller_node</text><text class="svg-small" x="605" y="236">Pose PID + inverse kinematics</text>
+        <path class="wire" d="M692 142 V190" marker-end="url(#ros-arrow)"/><text class="svg-code" x="595" y="166">/reference_trajectory</text>
+        <path class="wire" d="M526 220 H590" marker-end="url(#ros-arrow)"/><text class="svg-small" x="540" y="201">pose*</text>
+        <path class="wire" d="M692 251 V281 H140 V229" marker-end="url(#ros-arrow)"/><text class="svg-code" x="346" y="274">wheel / turret rate commands</text>
+        <rect class="node-box" x="38" y="326" width="204" height="60"/><text class="svg-title" x="55" y="351">d455_camera</text><text class="svg-small" x="55" y="372">Color + aligned depth + IMU</text>
+        <rect class="node-box" x="304" y="326" width="222" height="60"/><text class="svg-title" x="320" y="351">rtabmap</text><text class="svg-small" x="320" y="372">Visual map + loop closures</text>
+        <path class="wire" d="M242 355 H304" marker-end="url(#ros-arrow)"/><text class="svg-code" x="249" y="344">RGB-D</text>
+        <path class="wire" d="M415 251 V326" marker-end="url(#ros-arrow)"/><text class="svg-code" x="427" y="307">odom → base_link</text>
+        <rect class="target-box" x="590" y="326" width="205" height="60"/><text class="svg-title" x="605" y="351">Nav2 + motion adapter</text><text class="svg-small" x="605" y="372">Map → route → body command</text>
+        <path class="wire-target" d="M526 355 H590" marker-end="url(#ros-target-arrow)"/><path class="wire-target" d="M795 340 H826 V220 H795" marker-end="url(#ros-target-arrow)"/>
+        <text class="svg-code" x="536" y="342">map</text>
+        <rect class="node-box" x="38" y="449" width="204" height="64"/><text class="svg-title" x="55" y="474">H1 · H2 · CENTER</text><text class="svg-small" x="55" y="496">Three independent encoder ESPs</text>
+        <rect class="node-box" x="304" y="449" width="222" height="64"/><text class="svg-title" x="320" y="474">caster_encoder_bridge</text><text class="svg-small" x="320" y="496">Angles + validity + raw packets</text>
+        <path class="wire" d="M242 480 H304" marker-end="url(#ros-arrow)"/><text class="svg-code" x="247" y="466">UDP</text>
+        <rect class="node-box" x="860" y="80" width="181" height="74"/><text class="svg-title" x="876" y="106">Vicon reference</text><text class="svg-small" x="876" y="127">/HAMR_base/odom</text><text class="svg-small" x="876" y="144">Hardware test feedback*</text>
+        <path class="wire" d="M860 136 H828 V180 H735 V190" marker-end="url(#ros-arrow)"/>
+        <rect class="node-box" x="860" y="299" width="181" height="88"/><text class="svg-title" x="876" y="325">rosbag2 recorder</text><text class="svg-small" x="876" y="346">Commands · pose · sensors</text><text class="svg-small" x="876" y="366">foxglove_bridge / RViz</text>
+        <rect class="node-box" x="860" y="449" width="181" height="64"/><text class="svg-title" x="876" y="474">Caster CAD replay</text><text class="svg-small" x="876" y="496">Recorded joints → transforms</text>
+        <path class="wire" d="M526 480 H860" marker-end="url(#ros-arrow)"/><text class="svg-code" x="582" y="466">/caster_encoder/packets</text>
+        <path class="wire" d="M950 387 V449" marker-end="url(#ros-arrow)"/>
+        <text class="svg-small" x="38" y="589">*Select one feedback source: Vicon for the default hardware trial; onboard localization for autonomous operation.</text>
+      </svg>
+      <figcaption class="caption">01 — Functional graph assembled from the launch profiles. The caster measurement branch records passive motion independently of motor control.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section" id="node-groups">
+    <div class="section-heading"><p class="eyebrow">Node groups</p><h2>What each part does.</h2></div>
+    <div class="tech-node-grid">
+      <article><h3>Acquisition</h3><dl><dt>hamr_uros_bridge</dt><dd>Exchanges motor rates, encoder counts, and IMU packets with the drive ESP.</dd><dt>caster_encoder_bridge</dt><dd>Receives H1, H2, and CENTER telemetry over Wi-Fi; retains timing and validity.</dd><dt>d455_camera · d455_imu_filter</dt><dd>Publishes RGB-D observations and an optional filtered camera IMU.</dd></dl></article>
+      <article><h3>Localization</h3><dl><dt>holonomic_odom_node</dt><dd>Converts wheel and turret counts into motion estimates.</dd><dt>ekf_filter_node</dt><dd>Fuses wheel motion and the chassis IMU into continuous local odometry.</dd><dt>rtabmap · rgbd_odometry</dt><dd>Builds or revisits a visual map; RGB-D odometry is an optional source.</dd></dl></article>
+      <article><h3>Motion</h3><dl><dt>continuous_waypoint</dt><dd>Blends corners and limits speed, acceleration, and jerk.</dd><dt>map_reference_to_odom</dt><dd>Expresses map-frame references in the controller's local frame.</dd><dt>hamr_controller_node</dt><dd>Tracks position and heading, then computes wheel and turret rates.</dd></dl></article>
+      <article><h3>Simulation</h3><dl><dt>parameter_bridge</dt><dd>Connects Gazebo state and actuator topics to ROS 2.</dd><dt>compa_controller_node</dt><dd>Runs the simulation chassis controller, including gimbal axes.</dd><dt>robot_state_publisher</dt><dd>Publishes the robot's link transforms from joint positions.</dd></dl></article>
+      <article><h3>Terrain planning</h3><dl><dt>terrain_map_publisher</dt><dd>Publishes occupancy, height, and elevation layers.</dd><dt>astar_on_costmap</dt><dd>Finds an off-road route subject to slope and step limits.</dd><dt>Nav2 servers <span class="tag">Target</span></dt><dd>Plan and follow obstacle-aware routes using the mapped environment.</dd></dl></article>
+      <article><h3>Experiment tools</h3><dl><dt>rosbag2 · record_hamr_test_bag</dt><dd>Stores commands and measurements for paired analysis.</dd><dt>replay_caster_encoder_joints</dt><dd>Reconstructs caster joints from recorded telemetry.</dd><dt>foxglove_bridge · rviz2</dt><dd>Displays live topics, trajectories, transforms, and recorded motion.</dd></dl></article>
+    </div>
+  </section>
+
+  <section class="section" id="topic-reference">
+    <div class="section-heading"><p class="eyebrow">Interface reference</p><h2>Topics, grouped by purpose.</h2><p>Names below reflect the repository defaults. Expand a group for message types and endpoints.</p></div>
+    <div class="tech-inventory">
+      <details open><summary>Hardware control and localization</summary><div class="table-wrap"><table><thead><tr><th>Topic</th><th>Message</th><th>Publisher → consumer</th></tr></thead><tbody>
+        <tr><td><code>/reference_trajectory</code></td><td><code>hamr_interfaces/ReferenceTraj</code></td><td>Trajectory publisher / map adapter → controller</td></tr>
+        <tr><td><code>/left_wheel/cmd_vel</code><br><code>/right_wheel/cmd_vel</code><br><code>/turret/cmd_vel</code></td><td><code>std_msgs/Float64</code></td><td>Controller → serial bridge → ESP; actuator rates in rad/s</td></tr>
+        <tr><td><code>/left_wheel/encoder_ticks</code><br><code>/right_wheel/encoder_ticks</code><br><code>/turret/encoder_ticks</code></td><td><code>std_msgs/Int32</code></td><td>Serial bridge → wheel/turret odometry</td></tr>
+        <tr><td><code>/imu/data</code></td><td><code>sensor_msgs/Imu</code></td><td>Serial bridge → EKF</td></tr>
+        <tr><td><code>/wheel_odom</code></td><td><code>nav_msgs/Odometry</code></td><td>Holonomic odometry → EKF</td></tr>
+        <tr><td><code>/local_HAMR/odom</code></td><td><code>nav_msgs/Odometry</code></td><td>EKF → onboard localization / optional control feedback</td></tr>
+        <tr><td><code>/HAMR_base/odom</code><br><code>/HAMR_turret/odom</code></td><td><code>nav_msgs/Odometry</code></td><td>Vicon base reference / encoder-derived turret estimate → hardware controller</td></tr>
+        <tr><td><code>/imu/mag</code><br><code>/imu/calib_status</code></td><td><code>sensor_msgs/MagneticField</code><br><code>std_msgs/UInt8MultiArray</code></td><td>Serial bridge → calibration and analysis</td></tr>
+        <tr><td><code>/wheel_control/status</code><br><code>/wheel_encoder/diagnostics</code></td><td><code>std_msgs/Float64MultiArray</code></td><td>Serial bridge → motor and quadrature diagnostics</td></tr>
+        <tr><td><code>/live_gains</code></td><td><code>hamr_interfaces/LiveGains</code></td><td>Controller → tuning visualizations</td></tr>
+        <tr><td><code>/continuous_waypoint/path</code><br><code>/continuous_waypoint/status</code><br><code>/continuous_waypoint/metadata</code></td><td><code>nav_msgs/Path</code><br><code>std_msgs/String</code></td><td>Planner → experiment monitoring; start/stop are Trigger services</td></tr>
+      </tbody></table></div></details>
+      <details><summary>Caster measurement and reconstruction</summary><div class="table-wrap"><table><thead><tr><th>Topic</th><th>Message</th><th>Purpose</th></tr></thead><tbody>
+        <tr><td><code>/caster_encoder/packets</code></td><td><code>std_msgs/String</code></td><td>Raw validated JSON envelopes, sample clocks, flags, and counters</td></tr>
+        <tr><td><code>/caster_encoder/metadata</code><br><code>/caster_encoder/diagnostics</code></td><td><code>std_msgs/String</code></td><td>Per-board configuration, boot IDs, sequence tracking, and freshness</td></tr>
+        <tr><td><code>/caster_encoder/H1/joint_states</code><br><code>/caster_encoder/H2/joint_states</code><br><code>/caster_encoder/CENTER/joint_states</code></td><td><code>sensor_msgs/JointState</code></td><td>Valid angles and independently valid angular velocities</td></tr>
+        <tr><td><code>/caster_replay/packets</code><br><code>/caster_replay/joint_states</code></td><td><code>std_msgs/String</code><br><code>sensor_msgs/JointState</code></td><td>Bag input → reconstructed CAD joints</td></tr>
+        <tr><td><code>/caster_replay/status</code><br><code>/caster_replay/status_marker</code><br><code>/caster_replay/phase_markers</code></td><td><code>std_msgs/String</code><br><code>visualization_msgs/Marker</code><br><code>visualization_msgs/MarkerArray</code></td><td>Reconstruction validity and orientation markers</td></tr>
+        <tr><td><code>/caster_replay/tf</code><br><code>/caster_replay/tf_static</code></td><td><code>tf2_msgs/TFMessage</code></td><td>Isolated replay transforms from <code>/caster_replay/state_publisher</code></td></tr>
+      </tbody></table></div></details>
+      <details><summary>RGB-D mapping and autonomous navigation <span class="tag">Nav2 target</span></summary><div class="table-wrap"><table><thead><tr><th>Topic / interface</th><th>Message</th><th>Purpose</th></tr></thead><tbody>
+        <tr><td><code>/d455/color/image_raw</code><br><code>/d455/depth/image_rect_raw</code></td><td><code>sensor_msgs/Image</code></td><td>Color and aligned depth → RTAB-Map</td></tr>
+        <tr><td><code>/d455/color/camera_info</code></td><td><code>sensor_msgs/CameraInfo</code></td><td>Camera calibration → projection and visual estimation</td></tr>
+        <tr><td><code>/d455/imu_raw</code><br><code>/d455/imu</code></td><td><code>sensor_msgs/Imu</code></td><td>Camera inertial stream → optional Madgwick orientation filter → SLAM</td></tr>
+        <tr><td><code>/d455/depth/color/points</code></td><td><code>sensor_msgs/PointCloud2</code></td><td>Optional camera point cloud</td></tr>
+        <tr><td><code>/odom</code></td><td><code>nav_msgs/Odometry</code></td><td>Optional <code>rgbd_odometry</code> output</td></tr>
+        <tr><td><code>/localization_pose</code><br><code>/map</code></td><td><code>geometry_msgs/PoseWithCovarianceStamped</code><br><code>nav_msgs/OccupancyGrid</code></td><td>RTAB-Map localization and occupancy output; configured remaps may differ</td></tr>
+        <tr><td><code>/reference_trajectory_map</code></td><td><code>hamr_interfaces/ReferenceTraj</code></td><td>Map reference → <code>map_reference_to_odom</code> → local control reference</td></tr>
+        <tr><td><code>/plan</code><br><code>/cmd_vel</code><br><code>/navigate_to_pose</code></td><td><code>nav_msgs/Path</code><br><code>geometry_msgs/Twist</code> or stamped variant<br><code>nav2_msgs/NavigateToPose</code> action</td><td>Target Nav2 route, body velocity, and navigation goal; adapt the selected velocity contract to HAMR kinematics</td></tr>
+        <tr><td><code>/global_costmap/costmap</code><br><code>/local_costmap/costmap</code></td><td><code>nav_msgs/OccupancyGrid</code></td><td>Target Nav2 planning and near-field obstacle layers</td></tr>
+      </tbody></table></div><p class="tech-detail">Target node set: <code>planner_server</code>, <code>controller_server</code>, <code>bt_navigator</code>, <code>behavior_server</code>, <code>waypoint_follower</code>, <code>velocity_smoother</code>, and lifecycle management. This template does not claim that Nav2 is part of the current hardware launch.</p></details>
+      <details><summary>Simulation, terrain planning, and visualization</summary><div class="table-wrap"><table><thead><tr><th>Topic</th><th>Message</th><th>Publisher / profile</th></tr></thead><tbody>
+        <tr><td><code>/clock</code><br><code>/joint_states</code><br><code>/compa/odom</code></td><td><code>rosgraph_msgs/Clock</code><br><code>sensor_msgs/JointState</code><br><code>nav_msgs/Odometry</code></td><td>Gazebo → <code>parameter_bridge</code></td></tr>
+        <tr><td><code>/roll/cmd_vel</code><br><code>/pitch/cmd_vel</code><br><code>/yaw/cmd_vel</code></td><td><code>std_msgs/Float64</code></td><td><code>compa_controller_node</code> → simulated gimbal</td></tr>
+        <tr><td><code>/tf</code><br><code>/tf_static</code><br><code>/robot_description</code></td><td><code>tf2_msgs/TFMessage</code><br><code>std_msgs/String</code></td><td>State publisher, EKF, camera transforms, and selected simulation bridge</td></tr>
+        <tr><td><code>/costmap</code><br><code>/costmap_image</code><br><code>/height_image</code><br><code>/elevation_map</code></td><td><code>nav_msgs/OccupancyGrid</code><br><code>sensor_msgs/Image</code><br><code>grid_map_msgs/GridMap</code></td><td><code>terrain_map_publisher</code> / <code>png_costmap_publisher</code></td></tr>
+        <tr><td><code>/initialpose</code><br><code>/goal_pose</code><br><code>/astar_path</code><br><code>/astar_debug</code></td><td>Pose input · Path · Marker</td><td><code>astar_on_costmap</code> terrain-planning profile</td></tr>
+        <tr><td><code>/prm/nodes</code><br><code>/prm/edges</code><br><code>/prm/adjacency</code><br><code>/map_inflated</code></td><td>Marker · Int32MultiArray · OccupancyGrid</td><td><code>prm_builder</code> optional roadmap profile</td></tr>
+        <tr><td><code>/astar/path</code><br><code>/astar/explored</code></td><td>Path · Marker</td><td><code>astar_planner</code> optional 2D map profile</td></tr>
+        <tr><td><code>/compa/path</code><br><code>/compa/path_marker</code></td><td>Path · Marker</td><td><code>compa_path_tracer</code> optional trajectory view</td></tr>
+      </tbody></table></div><p class="tech-detail">Additional profile utilities include <code>ros_gz_sim/create</code>, <code>ground_truth_tf_bridge</code>, <code>static_map_to_odom</code>, <code>imu_link_static_tf</code>, <code>static_base_to_d455</code>, <code>rtabmap_viz</code>, and optional PID/odometry plotters. Standard ROS discovery and parameter topics are omitted.</p></details>
+    </div>
+    <a class="tech-inline-link" href="vslam.html">Follow the perception and navigation pipeline →</a>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="footer-inner"><span class="footer-brand">HAMR / CASTER MOBILITY RESEARCH</span><span>Academic project template · Simulation visuals</span><div class="footer-links"><a href="index.html#publication">Publication</a><a href="index.html#hardware">Hardware</a><a href="#main">Back to top ↑</a></div></div></footer><script src="assets/site.js"></script></body></html>

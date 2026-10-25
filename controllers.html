@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="HAMR caster mobility research: hardware, ROS 2, visual navigation, controllers, and simulation experiments."><title>Control & measurement · HAMR</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="assets/site.css"><link rel="stylesheet" href="assets/technical.css"></head>
+<body><a class="skip" href="#main">Skip to content</a><header class="site-header"><div class="header-inner"><a class="brand" href="index.html" aria-label="HAMR project home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-copy">HAMR<small>CASTER MOBILITY RESEARCH</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="ros2.html">ROS 2</a><a href="vslam.html">VSLAM</a><a href="controllers.html" aria-current="page">Controllers</a><a href="experiments.html">Experiments</a></nav></div></header>
+<main id="main" class="technical-page">
+  <header class="page-intro">
+    <p class="eyebrow">03 / Control &amp; instrumentation</p>
+    <h1>Control the vehicle.<br>Measure the caster.</h1>
+    <p>Wheel speed and turret heading close the motion loop. Independent encoders reveal how each supporting caster moves along the route.</p>
+  </header>
+
+  <section class="section" id="control-overview">
+    <div class="section-heading"><p class="eyebrow">01 / Motion architecture</p><h2>Two loops, one trajectory.</h2><p>The Raspberry Pi corrects position and heading. The drive ESP tracks wheel speeds and returns encoder and IMU measurements.</p></div>
+    <figure class="figure-panel tech-figure tech-wide">
+      <svg viewBox="0 0 1080 330" role="img" aria-labelledby="control-loop-title control-loop-desc">
+        <title id="control-loop-title">High-level pose control and low-level motor control</title><desc id="control-loop-desc">Waypoints enter a trajectory generator, then pose PID and inverse kinematics on the Raspberry Pi. Wheel and turret rate commands travel over UART to the drive ESP. Wheel PID and the turret drive command the robot. Encoders and the IMU return feedback to the two loops.</desc>
+        <defs><marker id="control-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#6f1d1b"/></marker></defs>
+        <rect class="group-box" x="20" y="30" width="540" height="220"/><rect class="group-box" x="590" y="30" width="290" height="220"/>
+        <text class="svg-label" x="40" y="58">RASPBERRY PI / ROS 2</text><text class="svg-label" x="610" y="58">DRIVE ESP32 / 10 MS LOOP</text>
+        <rect class="node-box" x="40" y="90" width="140" height="70"/><text class="svg-title" x="57" y="117">Trajectory</text><text class="svg-small" x="57" y="140">Pose + feed-forward</text>
+        <rect class="node-box" x="220" y="90" width="140" height="70"/><text class="svg-title" x="237" y="117">Pose PID</text><text class="svg-small" x="237" y="140">x · y · heading error</text>
+        <rect class="node-box" x="400" y="90" width="140" height="70"/><text class="svg-title" x="417" y="117">Kinematics</text><text class="svg-small" x="417" y="140">Wheel / turret rates</text>
+        <path class="wire" d="M180 125 H220" marker-end="url(#control-arrow)"/><path class="wire" d="M360 125 H400" marker-end="url(#control-arrow)"/>
+        <path class="wire" d="M540 125 H610" marker-end="url(#control-arrow)"/><text class="svg-code" x="548" y="113">UART</text>
+        <rect class="node-box" x="610" y="90" width="250" height="70"/><text class="svg-title" x="628" y="117">Wheel PID + turret drive</text><text class="svg-small" x="628" y="140">Measured rate → motor PWM</text>
+        <rect class="node-box" x="930" y="90" width="130" height="70"/><text class="svg-title" x="950" y="117">Robot</text><text class="svg-small" x="950" y="140">Physical motion</text>
+        <path class="wire" d="M860 125 H930" marker-end="url(#control-arrow)"/><text class="svg-code" x="874" y="113">PWM</text>
+        <path class="wire" d="M995 160 V285 H290 V160" marker-end="url(#control-arrow)"/><text class="svg-code" x="325" y="310">Encoders + IMU → odometry / localization → measured pose</text>
+        <path class="wire" d="M995 210 H735 V160" marker-end="url(#control-arrow)"/><text class="svg-code" x="770" y="232">Wheel encoder rate</text>
+        <text class="svg-small" x="40" y="210">Outer loop follows the route and preserves turret heading.</text><text class="svg-small" x="610" y="210">Inner loop compensates wheel load.</text>
+      </svg>
+      <figcaption class="caption">01 — The same trajectory concept is used in simulation and hardware, with geometry and actuator limits configured for each platform.</figcaption>
+    </figure>
+    <ol class="tech-sequence">
+      <li><h3>Generate the reference</h3><p>Blend waypoint corners and schedule a feasible velocity through each segment.</p></li>
+      <li><h3>Correct the motion</h3><p>Combine reference velocity with position and heading feedback, then apply inverse kinematics.</p></li>
+      <li><h3>Track actuator rates</h3><p>Send wheel and turret commands to the ESP; return motion measurements to the Pi.</p></li>
+    </ol>
+  </section>
+
+  <section class="section" id="wheel-pid">
+    <div class="two-col">
+      <div class="section-heading"><p class="eyebrow">02 / Powered wheels</p><h2>A speed loop<br>for each wheel.</h2><p>Quadrature encoders measure how fast the left and right wheels turn. The ESP compares these rates with their targets and adjusts motor PWM.</p><div class="tech-formula">u = u<sub>ff</sub> + K<sub>p</sub>e + K<sub>i</sub>∫e dt + K<sub>d</sub>de/dt</div><p class="tech-detail">Feed-forward supplies the nominal effort; PID corrects the difference. Integral limits and output saturation keep the command bounded.</p></div>
+      <figure class="figure-panel tech-figure">
+        <svg viewBox="0 0 520 370" role="img" aria-labelledby="wheel-title wheel-desc">
+          <title id="wheel-title">Wheel encoder quadrature and feedback diagram</title><desc id="wheel-desc">A wheel encoder produces offset A and B square waves. Their edge order indicates rotation direction, and counts over elapsed time indicate wheel rate. Both return to the ESP wheel speed controller.</desc>
+          <defs><marker id="wheel-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#6f1d1b"/></marker></defs>
+          <text class="svg-label" x="35" y="35">ENCODER → DIRECTION + RATE</text>
+          <circle cx="125" cy="141" r="66" fill="#f8ede4" stroke="#6f1d1b" stroke-width="2"/><circle cx="125" cy="141" r="48" fill="#fffefa" stroke="#e5d7c6"/><circle cx="125" cy="141" r="12" fill="#6f1d1b"/><path d="M125 141 L155 100" stroke="#6f1d1b" stroke-width="3"/>
+          <path class="wire" d="M91 65 A85 85 0 0 1 204 125" marker-end="url(#wheel-arrow)"/><text class="svg-small" x="87" y="236">Wheel rotation</text>
+          <text class="svg-title" x="250" y="102">A</text><path d="M280 108 H302 V76 H330 V108 H358 V76 H386 V108 H414 V76 H442 V108 H476" fill="none" stroke="#6f1d1b" stroke-width="2"/>
+          <text class="svg-title" x="250" y="167">B</text><path d="M280 173 H316 V141 H344 V173 H372 V141 H400 V173 H428 V141 H456 V173 H476" fill="none" stroke="#99582a" stroke-width="2"/>
+          <text class="svg-small" x="280" y="211">Edge order → direction</text><text class="svg-small" x="280" y="232">Counts / time → angular velocity</text>
+          <path class="wire" d="M125 255 V285 H260" marker-end="url(#wheel-arrow)"/><rect class="node-box" x="260" y="266" width="216" height="53"/><text class="svg-title" x="278" y="288">Drive ESP32</text><text class="svg-small" x="278" y="307">100 Hz nominal wheel loop</text>
+          <text class="svg-code" x="35" y="352">/left_wheel/encoder_ticks · /right_wheel/encoder_ticks</text>
+        </svg>
+        <figcaption class="caption">02 — Incremental counts provide a relative rotation measurement. Direction and counts per revolution are calibrated for the installed drivetrain.</figcaption>
+      </figure>
+    </div>
+    <details class="tech-inventory" id="car-esp-wiring"><summary>Car ESP wiring &amp; telemetry</summary>
+    <p class="tech-detail">GPIO assignments below are defined in the current drive firmware. They document the software configuration; the installed harness still needs to be checked against the board and encoder hardware.</p>
+    <div class="table-wrap"><table><thead><tr><th>Connection</th><th>Configured GPIO / interface</th><th>Signal handling</th></tr></thead><tbody>
+      <tr><td>Left wheel encoder</td><td>A → GPIO14 · B → GPIO13</td><td>Input pull-ups; both edges of A trigger counting, B determines direction</td></tr>
+      <tr><td>Right wheel encoder</td><td>A → GPIO1 · B → GPIO2</td><td>Same acquisition; firmware reverses the right-wheel count sign</td></tr>
+      <tr><td>Turret encoder</td><td>A → GPIO5 · B → GPIO4</td><td>Input pull-ups; relative rotation from A-edge quadrature counting</td></tr>
+      <tr><td>BNO055 IMU</td><td>SDA → GPIO33 · SCL → GPIO34</td><td><code>IMU55 sens(33,34)</code>; I²C at 100 kHz, default address <code>0x28</code></td></tr>
+      <tr><td>Motor driver outputs</td><td>Left PWM11 / DIR12<br>Right PWM41 / DIR42<br>Turret PWM7 / DIR6</td><td>5 kHz, 12-bit PWM configured by the drive ESP</td></tr>
+      <tr><td>Pi data link</td><td><code>Serial0</code> · 460800 baud</td><td>Binary bidirectional UART; RX/TX GPIOs use board defaults and are not explicitly assigned in this source</td></tr>
+      <tr><td>Programming / logs</td><td>USB CDC · 115200 baud</td><td>Separate from the binary data UART</td></tr>
+    </tbody></table></div>
+    <p class="tech-detail">The Pi bridge publishes the three cumulative tick streams and <code>/imu/data</code>; wheel and turret rate targets travel back on the same UART. The firmware targets <code>esp32-s2-saola-1</code>. GPIO numbers refer to ESP pins, not connector positions.</p>
+    <p class="tech-detail">Source files: <code>HAMR_Controller/src/main.cpp</code>, <code>src/imu_55.cpp</code>, <code>src/imu_55.h</code>, <code>platformio.ini</code>; host settings: <code>hamr_control/hamr_bringup/config/hamr_uros_bridge.yaml</code>. The explicit IMU constructor uses GPIO33/34; its adjacent GPIO4/5 comment is stale.</p>
+    </details>
+  </section>
+
+  <section class="section" id="turret-heading">
+    <div class="two-col">
+      <figure class="figure-panel tech-figure">
+        <svg viewBox="0 0 520 370" role="img" aria-labelledby="turret-title turret-desc">
+          <title id="turret-title">Independent turret heading and base orientation</title><desc id="turret-desc">A rotated base supports an independently oriented turret. The turret encoder measures relative angle, while the fused base heading defines the world heading. The desired turret heading is held as the base turns.</desc>
+          <defs><marker id="turret-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#6f1d1b"/></marker></defs>
+          <text class="svg-label" x="30" y="35">TOP VIEW / OFFSET TURRET</text>
+          <g transform="translate(255 196) rotate(32)"><rect x="-120" y="-85" width="240" height="170" rx="22" fill="#fbf5e9" stroke="#bb9457" stroke-width="1.5"/><rect x="-142" y="-62" width="30" height="73" rx="6" fill="#795b45"/><rect x="112" y="-62" width="30" height="73" rx="6" fill="#795b45"/><path d="M0 10 V-115" stroke="#bb9457" stroke-width="1.5" stroke-dasharray="5 4"/></g>
+          <circle cx="255" cy="177" r="57" fill="#fffefa" stroke="#6f1d1b" stroke-width="2"/><circle cx="255" cy="177" r="10" fill="#6f1d1b"/><path d="M255 177 V87" stroke="#6f1d1b" stroke-width="3" marker-end="url(#turret-arrow)"/>
+          <path d="M255 116 A61 61 0 0 1 287 125" fill="none" stroke="#99582a" stroke-width="2"/><text class="svg-title" x="300" y="110">θ<tspan baseline-shift="sub" font-size="10">relative</tspan></text>
+          <text class="svg-small" x="290" y="67">Desired world heading</text><text class="svg-small" x="338" y="282">Base yaw changes</text><text class="svg-small" x="30" y="300">Turret encoder measures</text><text class="svg-small" x="30" y="319">rotation relative to the base.</text>
+          <text class="svg-code" x="100" y="355">ψ<tspan baseline-shift="sub" font-size="9">turret</tspan> = ψ<tspan baseline-shift="sub" font-size="9">base</tspan> + θ<tspan baseline-shift="sub" font-size="9">relative</tspan></text>
+        </svg>
+        <figcaption class="caption">03 — A relative encoder angle and the base heading together describe turret orientation in the world frame.</figcaption>
+      </figure>
+      <div class="section-heading"><p class="eyebrow">03 / Turret yaw</p><h2>Keep the heading<br>while the base turns.</h2><p>The Pi uses the turret's relative encoder angle and base orientation to estimate world heading. Its yaw correction coordinates turret rotation with the drive wheels.</p><p>The command travels through <code>/turret/cmd_vel</code> to the ESP. Encoder feedback returns through <code>/turret/encoder_ticks</code> and <code>/HAMR_turret/odom</code>.</p><details class="tech-inventory"><summary>Controller implementation</summary><p class="tech-detail">In the ROS/UART firmware branch, turret rate is mapped to PWM with a deadband, static-friction compensation, and a slew limit. World-heading feedback closes on the Pi. A separate local angle-PID mode is also present in the firmware; its activation depends on the selected command mode.</p></details></div>
+    </div>
+  </section>
+
+  <section class="section" id="ball-caster-encoders">
+    <div class="section-heading"><p class="eyebrow">04 / Ball caster measurement</p><h2>Three angles describe the motion.</h2><p>H1 and H2 measure hemisphere rotation. CENTER measures the common rod. Each rotating module has its own ESP32-C6, battery, and wireless link.</p></div>
+    <figure class="figure-panel tech-figure tech-wide">
+      <svg viewBox="0 0 1080 360" role="img" aria-labelledby="caster-enc-title caster-enc-desc">
+        <title id="caster-enc-title">H1, H2 and CENTER ball caster measurement architecture</title><desc id="caster-enc-desc">The ball caster consists of independently rotating hemispheres and a shared carrier axis. H1 and H2 read incremental encoders over buffered A B Z signals; CENTER reads an absolute SPI encoder. Three XIAO ESP32-C6 boards send UDP telemetry to the ROS receiver on the Raspberry Pi or recording computer. These are measurement boards, not actuators.</desc>
+        <defs><marker id="caster-enc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#6f1d1b"/></marker></defs>
+        <text class="svg-label" x="30" y="35">KINEMATIC SCHEMATIC</text>
+        <path d="M180 80 A100 100 0 0 0 180 280 Z" fill="#f8ede4" stroke="#6f1d1b" stroke-width="2"/><path d="M194 80 A100 100 0 0 1 194 280 Z" fill="#ffe6a7" stroke="#99582a" stroke-width="2"/><ellipse cx="187" cy="180" rx="14" ry="99" fill="#fffdf8" stroke="#e5d7c6"/>
+        <path d="M65 180 H308" stroke="#795b45" stroke-width="7"/><circle cx="187" cy="180" r="18" fill="#fffefa" stroke="#6f1d1b" stroke-width="2"/>
+        <text class="svg-title" x="106" y="150">H1</text><text class="svg-title" x="227" y="150">H2</text><text class="svg-small" x="133" y="317">CENTER / common rod</text>
+        <path class="wire" d="M120 104 Q150 77 158 110" marker-end="url(#caster-enc-arrow)"/><path class="wire" d="M229 104 Q260 77 267 110" marker-end="url(#caster-enc-arrow)"/>
+        <path class="wire" d="M284 194 A25 25 0 1 0 284 163" marker-end="url(#caster-enc-arrow)"/>
+        <rect class="node-box" x="375" y="55" width="241" height="61"/><text class="svg-title" x="391" y="79">H1 / AMT132S-V</text><text class="svg-small" x="391" y="100">A/B/Z → buffer → XIAO ESP32-C6</text>
+        <rect class="node-box" x="375" y="147" width="241" height="61"/><text class="svg-title" x="391" y="171">H2 / AMT132S-V</text><text class="svg-small" x="391" y="192">A/B/Z → buffer → XIAO ESP32-C6</text>
+        <rect class="node-box" x="375" y="239" width="241" height="61"/><text class="svg-title" x="391" y="263">CENTER / AMT252B-V</text><text class="svg-small" x="391" y="284">14-bit SPI → XIAO ESP32-C6</text>
+        <path class="wire" d="M616 85 H670 V178 H760" marker-end="url(#caster-enc-arrow)"/><path class="wire" d="M616 178 H670"/><path class="wire" d="M616 269 H670 V178"/>
+        <text class="svg-code" x="690" y="155">Wi-Fi</text><text class="svg-code" x="690" y="202">UDP 5005</text>
+        <rect class="node-box" x="760" y="137" width="288" height="81"/><text class="svg-title" x="779" y="163">Raspberry Pi / recording host</text><text class="svg-small" x="779" y="186">caster_encoder_bridge</text><text class="svg-small" x="779" y="205">Raw telemetry + valid angle topics</text>
+        <text class="svg-small" x="375" y="334">Independent power · no wires between rotating nodes · passive measurement</text>
+      </svg>
+      <figcaption class="caption">04 — Simplified measurement coordinates. Physical side, direction, and zero offsets are calibrated against the installed assembly.</figcaption>
+    </figure>
+    <div class="tech-channel-grid">
+      <article class="tech-channel"><span class="tech-kicker">Hemisphere 1</span><h3>H1 / φ₁</h3><p>Quadrature counts capture the first shell's accumulated rotation and rate. An index pulse provides a separate reference event.</p><code>/caster_encoder/H1/joint_states</code></article>
+      <article class="tech-channel"><span class="tech-kicker">Hemisphere 2</span><h3>H2 / φ₂</h3><p>The same acquisition chain measures the second shell independently, revealing differences between the two contact motions.</p><code>/caster_encoder/H2/joint_states</code></article>
+      <article class="tech-channel"><span class="tech-kicker">Common rod</span><h3>CENTER / α</h3><p>A parity-checked absolute encoder measures single-turn rod angle. Continuous turns are reconstructed only when valid.</p><code>/caster_encoder/CENTER/joint_states</code></article>
+    </div>
+    <p class="note">These three boards measure the passive caster. They do not drive its hemispheres or command the robot.</p>
+    <details class="tech-inventory"><summary>Acquisition and wiring reference</summary><div class="table-wrap"><table><thead><tr><th>Channel</th><th>Acquisition</th><th>Interface</th></tr></thead><tbody>
+      <tr><td>H1 / H2</td><td>AMT132S-V, hardware x4 quadrature counting</td><td>SN74LVC244ADW at 3.3 V; A → D0/GPIO0, B → D1/GPIO1, Z → D2/GPIO2</td></tr>
+      <tr><td>CENTER</td><td>AMT252B-V, 14-bit absolute single-turn position</td><td>CS → D3/GPIO21, SCLK → D8/GPIO19, MISO → D9/GPIO20, MOSI → D10/GPIO18</td></tr>
+      <tr><td>Every module</td><td>200 Hz default sampling; two samples per 100 Hz datagram</td><td>2.4 GHz Wi-Fi / UDP to the configured receiver; independent 2S battery and 5 V UBEC</td></tr>
+      <tr><td>Reference calibration</td><td>Sign, zero, count scale, time alignment</td><td>2048 PPR / 8192 x4 counts is the tentative H1/H2 configuration, pending physical verification</td></tr>
+    </tbody></table></div><p class="tech-detail">Each ESP has its own boot clock. Raw packets preserve source timestamps, sequence numbers, and validity flags; ROS display headers use host receipt time. Resolution is distinct from measured angular accuracy.</p></details>
+  </section>
+
+  <section class="section" id="wheelchair-caster-encoders">
+    <div class="two-col">
+      <div class="section-heading"><p class="eyebrow">05 / Wheelchair caster comparison</p><h2>Swivel angle.<br>Wheel rotation.</h2><p>For the conventional caster, the swivel angle describes its orientation and axle rotation describes rolling. The paired experiment compares this motion with the ball caster's reconstructed coordinates.</p><p class="tech-detail"><span class="tag">Target instrumentation</span> The diagram reserves an encoder at the swivel axis and an optional wheel-axle encoder. Simulation uses joint states; the physical sensor and wiring details can be filled in after the rig is finalized.</p><a class="tech-inline-link" href="experiments.html#caster-vision">See encoder and vision reconstruction →</a></div>
+      <figure class="figure-panel tech-figure">
+        <svg viewBox="0 0 520 370" role="img" aria-labelledby="swivel-title swivel-desc">
+          <title id="swivel-title">Proposed wheelchair caster encoder placement</title><desc id="swivel-desc">A sensor on the vertical swivel axis measures caster orientation. A second optional sensor on the horizontal wheel axle measures wheel rotation. This is target hardware instrumentation, while simulation joint positions supply the same coordinates.</desc>
+          <defs><marker id="swivel-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#6f1d1b"/></marker></defs>
+          <rect x="160" y="44" width="150" height="18" rx="4" fill="#e5d7c6"/><path d="M235 63 V134" stroke="#795b45" stroke-width="15"/><ellipse cx="235" cy="95" rx="39" ry="12" fill="#f8ede4" stroke="#6f1d1b" stroke-width="2"/>
+          <path d="M235 135 L185 165 V260 H275 V165 Z" fill="#fbf5e9" stroke="#bb9457" stroke-width="2"/><circle cx="231" cy="248" r="66" fill="#f8ede4" stroke="#99582a" stroke-width="2"/><circle cx="231" cy="248" r="47" fill="#fffdf8" stroke="#e5d7c6"/><circle cx="231" cy="248" r="12" fill="#99582a"/>
+          <path class="wire" d="M175 103 C165 65 298 65 295 101" marker-end="url(#swivel-arrow)"/>
+          <path class="wire" d="M203 176 A80 80 0 0 1 310 248" marker-end="url(#swivel-arrow)"/>
+          <path class="wire-target" d="M273 95 H365 V69 H480"/><text class="svg-title" x="340" y="51">Swivel encoder</text><text class="svg-small" x="340" y="88">Orientation β</text>
+          <path class="wire-target" d="M243 248 H365 V220 H480"/><text class="svg-title" x="340" y="200">Axle encoder</text><text class="svg-small" x="340" y="239">Rolling angle φ</text><text class="svg-small" x="340" y="258">Optional channel</text>
+          <text class="svg-small" x="34" y="345">Simulation: joint positions → angle histories → replay</text>
+        </svg>
+        <figcaption class="caption">05 — Proposed measurement locations for the wheelchair caster. Sensor hardware and physical wiring are placeholders.</figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="section">
+    <div class="section-heading"><p class="eyebrow">From angles to evidence</p><h2>Replay the motion, then compare.</h2><p>Preserve raw measurements, align their clocks, and apply the calibrated model. Trajectory error, caster orientation, and disturbance response can then be evaluated together.</p><a class="tech-inline-link" href="experiments.html">Explore the experiment template →</a></div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="footer-inner"><span class="footer-brand">HAMR / CASTER MOBILITY RESEARCH</span><span>Academic project template · Simulation visuals</span><div class="footer-links"><a href="index.html#publication">Publication</a><a href="index.html#hardware">Hardware</a><a href="#main">Back to top ↑</a></div></div></footer><script src="assets/site.js"></script></body></html>

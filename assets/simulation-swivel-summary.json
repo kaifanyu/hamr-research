@@ -1,0 +1,86 @@
+{
+  "terrain": "adtg_d25",
+  "caster": "swivel",
+  "shape": "square",
+  "recording_complete": true,
+  "trajectory_clock_complete": true,
+  "tracking_passed": true,
+  "physical_failure": null,
+  "infrastructure_failure": null,
+  "motion_start_s": 3.068,
+  "motion_end_s": 80.477,
+  "wall_duration_s": 351.7907156209985,
+  "route": {
+    "shape": "square",
+    "points_m": [
+      [
+        -2.2,
+        -2.2
+      ],
+      [
+        2.2,
+        -2.2
+      ],
+      [
+        2.2,
+        2.2
+      ],
+      [
+        -2.2,
+        2.2
+      ],
+      [
+        -2.2,
+        -2.2
+      ]
+    ],
+    "route_length_m": 17.6,
+    "reference_duration_s": 71.4,
+    "speed_m_s": 0.25,
+    "ramp_s": 1.0,
+    "initial_yaw_rad": 0.0,
+    "scope": "Map-scale path with vehicle clearance; a circle/square is width-limited, not a full surface-coverage sweep."
+  },
+  "measurements": {
+    "samples": 1319,
+    "tracking_rmse_m": 0.011222346077801345,
+    "tracking_max_error_m": 0.0644981649039825,
+    "final_position_error_m": 1.1511274071711538e-07,
+    "max_abs_roll_pitch_deg": [
+      7.320840217338287,
+      8.079666312239894
+    ]
+  },
+  "contacts": {
+    "enabled": false,
+    "count": 0,
+    "maximum_depth_m": 0.0,
+    "collision_names": []
+  },
+  "video": {
+    "path": "camera.mp4",
+    "sha256": "6a31349f3b7081ec9b3de2e4c27ecf7e4df916dfaba6558b6d4f56dc114b09f8",
+    "coverage_passed": true,
+    "metadata": "camera.json"
+  },
+  "cleanup": {
+    "recording": {
+      "process_group": 76502,
+      "signals": [],
+      "leader_exit_code": 0,
+      "group_present_after_cleanup": false
+    },
+    "contacts": null,
+    "simulation": {
+      "process_group": 76501,
+      "signals": [
+        "SIGINT",
+        "SIGTERM",
+        "SIGKILL"
+      ],
+      "leader_exit_code": 0,
+      "group_present_after_cleanup": false
+    }
+  },
+  "scope": "Measured Gazebo dynamics. A completed reference clock alone does not mean successful path tracking. Estimated mechanics/ideal velocity servos remain uncalibrated."
+}

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="HAMR caster mobility research: hardware, ROS 2, visual navigation, controllers, and simulation experiments."><title>Caster mobility, beyond flat ground · HAMR</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="assets/site.css"><link rel="stylesheet" href="assets/viewer.css"></head>
+<body><a class="skip" href="#main">Skip to content</a><header class="site-header"><div class="header-inner"><a class="brand" href="index.html" aria-label="HAMR project home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-copy">HAMR<small>CASTER MOBILITY RESEARCH</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="ros2.html">ROS 2</a><a href="vslam.html">VSLAM</a><a href="controllers.html">Controllers</a><a href="experiments.html">Experiments</a></nav></div></header>
+<main id="main">
+ <div class="home-intro"><div><span class="eyebrow">A study in mobile robot support mechanics</span><h1>Caster mobility,<br>beyond flat ground.</h1></div><div class="intro-meta"><span>Ball caster × wheelchair caster</span><span>Hardware · perception · control</span></div></div>
+ <section class="home-hero" aria-label="Interactive robot overview">
+  <div><figure class="robot-viewer" aria-label="Interactive simulation robot model">
+  <div class="robot-viewer__topline">
+    <span class="robot-viewer__eyebrow"><span aria-hidden="true"></span> Simulation model</span>
+    <span class="robot-viewer__model-label">COMPA / caster comparison</span>
+  </div>
+  <div class="robot-viewer__variants" role="group" aria-label="Choose support caster">
+    <button type="button" data-caster="ball" aria-pressed="true">Ball caster</button>
+    <button type="button" data-caster="wheelchair" aria-pressed="false">Wheelchair caster</button>
+  </div>
+  <div class="robot-viewer__demo-controls">
+    <button type="button" data-drive-toggle aria-pressed="false" title="Drive forward and sideways with a fixed platform heading" disabled>
+      <svg class="robot-viewer__play-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5 12 8 5 12.5Z"/></svg>
+      <svg class="robot-viewer__pause-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4v8M11 4v8"/></svg>
+      <span data-drive-label>Start drive</span>
+    </button>
+  </div>
+  <div class="robot-viewer__motion">
+    <span class="robot-viewer__phase" data-drive-phase aria-live="polite">Ready to drive</span>
+    <span class="robot-viewer__heading"><svg viewBox="0 0 14 14" aria-hidden="true"><rect x="3.5" y="6" width="7" height="6" rx="1.5"/><path d="M5 6V4a2 2 0 0 1 4 0v2"/></svg> Fixed platform yaw</span>
+  </div>
+  <div class="robot-viewer__scene" tabindex="0" role="group" aria-label="3D robot. Drag to rotate, use arrow keys to rotate, plus and minus keys to zoom, and Home to reset.">
+    <canvas aria-label="Simulation robot with a friendly heading marker, two drive wheels, and interchangeable front supports"></canvas>
+    <div class="robot-viewer__fallback">
+      <img src="assets/robot-fallback.svg" alt="Simplified simulation robot with a circular sensor platform, two rear drive wheels and two front ball casters.">
+      <p>Interactive model requires JavaScript and WebGL. Use the component buttons below to explore the setup.</p>
+    </div>
+    <button class="robot-viewer__hotspot" type="button" data-component="camera" aria-label="Inspect depth camera" hidden>1</button>
+    <button class="robot-viewer__hotspot" type="button" data-component="compute" aria-label="Inspect Raspberry Pi and ESP32" hidden>2</button>
+    <button class="robot-viewer__hotspot" type="button" data-component="caster" aria-label="Inspect support caster" hidden>3</button>
+  </div>
+  <div class="robot-viewer__controls" role="group" aria-label="Model view controls">
+    <button type="button" data-view="zoom-in" aria-label="Zoom in">+</button>
+    <button type="button" data-view="zoom-out" aria-label="Zoom out">−</button>
+    <button type="button" data-view="reset" aria-label="Reset model view"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.3 7a6 6 0 1 1-.2 5M4 3v4.5h4.5"/></svg></button>
+  </div>
+  <div class="robot-viewer__readout" aria-live="polite" aria-atomic="true">
+    <span class="robot-viewer__readout-index">03</span>
+    <div><strong data-viewer-title>Ball caster support</strong><p data-viewer-description>Two split spherical supports on the front rocker rails.</p></div>
+  </div>
+  <div class="robot-viewer__components" role="group" aria-label="Explore robot components">
+    <button type="button" data-component="camera"><span>01</span> Camera</button>
+    <button type="button" data-component="compute"><span>02</span> Compute</button>
+    <button type="button" data-component="caster" aria-pressed="true"><span>03</span> Caster</button>
+    <button type="button" data-component="drive"><span>04</span> Drive</button>
+    <button type="button" data-component="turret"><span>05</span> Turret</button>
+  </div>
+  <figcaption class="robot-viewer__caption"><span>Drag to rotate · Scroll to zoom</span><span>Illustrative motion · Face marks heading</span></figcaption>
+</figure>
+</div>
+  <div class="hero-copy"><span class="eyebrow">The motivation</span><h2>Small contact.<br>A different way to move.</h2><p>How much can a passive support change a robot’s motion? We study ball casters and wheelchair casters on the same mobile platform.</p>
+   <div class="research-lines"><div class="research-line"><span>01</span><div><h3>Beyond smooth floors</h3><p>Explore how a rolling spherical support negotiates uneven ground.</p></div></div><div class="research-line"><span>02</span><div><h3>Resilience to disturbance</h3><p>Compare resistance to redirection and recovery after a lateral push.</p></div></div><div class="research-line"><span>03</span><div><h3>More faithful trajectories</h3><p>Measure how caster motion affects path error and heading stability.</p></div></div></div>
+   <a class="text-link" href="experiments.html">Explore the comparison <span>↗</span></a>
+  </div>
+ </section>
+ <div class="project-strip"><b>One platform. Two support mechanisms.</b><span>ROS 2 Jazzy</span><span>Gazebo simulation</span><span>Encoder + vision measurement</span></div>
+ <section class="section" id="hardware"><div class="section-heading"><div class="section-topline"><span class="eyebrow">01 / Hardware overview</span><span class="section-number">SENSE → ESTIMATE → ACT</span></div><h2>From a wheel turn to a waypoint.</h2><p>Encoders, inertial sensing, and depth perception connect the mechanics to an onboard navigation and control loop.</p></div>
+ <p class="mobile-hint">Swipe to explore the diagram →</p><div class="diagram-wrap"><svg class="diagram" viewBox="0 0 1120 330" role="img" aria-labelledby="hardware-title hardware-desc">
+ <title id="hardware-title">Hardware sensing and closed-loop control</title>
+ <desc id="hardware-desc">Illustrated encoder, IMU, camera, ESP32, and Raspberry Pi blocks show the hardware. Wheel and turret encoders plus the BNO055 IMU send data through one ESP32 and UART to a Raspberry Pi. A depth camera connects directly by USB. The Pi estimates state and follows waypoint references, sending motor commands to the ESP and wheel and turret drivers. Passive caster encoder boards send independent UDP measurement data to the Pi.</desc>
+ <defs><marker id="hw-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#99582a"/></marker></defs>
+ <g fill="none" stroke="#bb9457" stroke-width="1.4" marker-end="url(#hw-arrow)">
+  <path d="M267 63H295V102H325"/><path d="M267 150H295V112H325"/>
+  <path d="M267 248H289V292H681V269"/><path d="M500 106H560"/>
+  <path d="M412 68V16H982V70"/><path d="M560 238H412V154"/>
+ </g>
+ <g fill="#fffefa" stroke="#e5d7c6">
+  <rect x="12" y="28" width="255" height="70" rx="3"/>
+  <rect x="12" y="116" width="255" height="70" rx="3"/>
+  <rect x="12" y="214" width="255" height="70" rx="3"/>
+  <rect x="325" y="68" width="175" height="86" rx="3"/>
+  <rect x="880" y="70" width="205" height="110" rx="3"/>
+ </g>
+ <rect x="560" y="53" width="245" height="216" rx="3" fill="#f8ede4" stroke="#c9ae86"/>
+ <!-- Small hardware sketches use the same line style as the signal diagram. -->
+ <g class="hardware-icon" data-hardware-icon="encoders" transform="translate(28 42)" aria-hidden="true" fill="none" stroke="#6f1d1b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="20" cy="21" r="18" fill="#f8ede4"/><circle cx="20" cy="21" r="12"/>
+  <circle cx="20" cy="21" r="4" fill="#fffefa"/><path d="M20 3V9M20 33V39M2 21H8M32 21H38M7.3 8.3L11.5 12.5M28.5 29.5L32.7 33.7M7.3 33.7L11.5 29.5M28.5 12.5L32.7 8.3"/>
+  <rect x="34" y="13" width="9" height="16" rx="1.5" fill="#fffefa"/><path d="M43 17H48M43 25H48"/>
+ </g>
+ <g class="hardware-icon" data-hardware-icon="imu" transform="translate(28 130)" aria-hidden="true" fill="none" stroke="#6f1d1b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2" y="2" width="37" height="37" rx="3" fill="#f8ede4"/>
+  <rect x="11" y="11" width="17" height="17" rx="1.5" fill="#fffefa"/>
+  <path d="M15 7V11M23 7V11M15 28V32M23 28V32M7 15H11M7 23H11M28 15H32M28 23H32"/>
+  <circle cx="7" cy="7" r="1"/><circle cx="34" cy="34" r="1"/>
+  <path d="M42 18V0M39 4L42 0L45 4M42 18H51M48 15L51 18L48 21"/>
+  <circle cx="42" cy="18" r="1.6" fill="#6f1d1b"/>
+ </g>
+ <g class="hardware-icon" data-hardware-icon="depth-camera" transform="translate(25 230)" aria-hidden="true" fill="none" stroke="#6f1d1b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="1" y="6" width="49" height="21" rx="5" fill="#f8ede4"/>
+  <circle cx="11" cy="16.5" r="4.5" fill="#fffefa"/><circle cx="39" cy="16.5" r="4.5" fill="#fffefa"/>
+  <circle cx="25" cy="16.5" r="2.5"/><path d="M21 27V33H30V27M17 33H34"/>
+ </g>
+ <g class="hardware-icon" data-hardware-icon="esp32" transform="translate(340 80)" aria-hidden="true" fill="none" stroke="#6f1d1b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="2" width="27" height="36" rx="2" fill="#f8ede4"/>
+  <path d="M11 12V6H15V10H19V6H23V10H27M5 17H1M5 23H1M5 29H1M32 17H36M32 23H36M32 29H36"/>
+  <rect x="11" y="16" width="15" height="13" rx="1" fill="#fffefa"/>
+  <rect x="14" y="34" width="9" height="5" rx="1" fill="#fffefa"/>
+ </g>
+ <g class="hardware-icon" data-hardware-icon="raspberry-pi" transform="translate(579 66)" aria-hidden="true" fill="none" stroke="#6f1d1b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="1" y="1" width="37" height="28" rx="3" fill="#fffefa"/>
+  <rect x="12" y="10" width="12" height="12" rx="1" fill="#ffe6a7"/>
+  <path d="M7 5H29M8 4V7M12 4V7M16 4V7M20 4V7M24 4V7M28 4V7"/>
+  <rect x="32" y="10" width="9" height="7" rx="1" fill="#f8ede4"/><rect x="32" y="20" width="9" height="7" rx="1" fill="#f8ede4"/>
+  <rect x="4" y="25" width="8" height="6" rx="1" fill="#f8ede4"/><circle cx="5" cy="15" r="1.2"/>
+ </g>
+ <g fill="#432818" font-size="13" font-weight="500">
+  <text x="85" y="54">Wheel + turret encoders</text><text x="85" y="143">BNO055 IMU</text>
+  <text x="85" y="241">RGB-D depth camera</text><text x="387" y="101">Car ESP32</text>
+  <text x="632" y="85">Raspberry Pi</text><text x="900" y="101">Drive + turret</text>
+ </g>
+ <g fill="#795b45" font-size="10">
+  <text x="85" y="76">Rotation, speed, relative yaw</text><text x="85" y="165">Heading and inertial motion</text>
+  <text x="85" y="263">Color + registered depth</text><text x="342" y="130">Acquire + timestamp</text>
+  <text x="342" y="145">Wheel-speed PID</text><text x="515" y="93">UART</text>
+  <text x="315" y="285">USB · RGB-D</text><text x="900" y="122">Motor drivers + actuation</text>
+  <text x="900" y="144">Wheel velocity</text><text x="900" y="162">Turret heading</text>
+  <text x="705" y="9">ESP → motor drivers · PWM</text><text x="428" y="229">Rate targets → ESP</text>
+ </g>
+ <g fill="#6f1d1b" font-size="11">
+  <text x="583" y="114">01  Fuse wheel + IMU state</text><text x="583" y="144">02  Localize with RGB-D</text>
+  <text x="583" y="174">03  Plan / follow waypoints</text><text x="583" y="204">04  Close pose + heading loop</text>
+ </g>
+ <path d="M582 222H782" stroke="#e5d7c6"/><text x="583" y="247" font-size="10" fill="#795b45">Target onboard architecture</text>
+ <text x="16" y="318" font-size="11" fill="#795b45">Independent measurement: H1 / H2 / CENTER encoder boards → Wi-Fi UDP → Pi / experiment logger</text>
+</svg></div>
+ <p class="caption">Control is layered: the Pi computes trajectory and heading corrections; the car ESP closes the fast wheel-speed PID loop. Visual localization corrects the global reference.</p>
+ <div class="hardware-notes"><div><span class="num">01 / DRIVE</span><h3>Wheel & turret encoders</h3><p>The car ESP counts rotation and sends timestamped telemetry over UART.</p></div><div><span class="num">02 / SENSING</span><h3>One inertial reference</h3><p>The same ESP reads the BNO055. A D455 depth camera connects directly to the Pi.</p></div><div><span class="num">03 / SUPPORT</span><h3>Interchangeable casters</h3><p>Split ball casters and conventional swivel casters share the simulation platform.</p></div><div><span class="num">04 / MEASUREMENT</span><h3>Observe passive motion</h3><p>H1, H2, and CENTER encoders record the ball assembly; vision provides another estimate.</p></div></div>
+ <a class="text-link" href="controllers.html">See encoder wiring and control loops <span>↗</span></a>
+ </section>
+ <section class="section"><div class="section-heading"><span class="eyebrow">02 / Inside the system</span><h2>Follow the signal.</h2></div><div class="explore-row"><a href="ros2.html">ROS 2 <span>↗</span><small>Nodes, topics, and data flow.</small></a><a href="vslam.html">VSLAM <span>↗</span><small>From depth to a navigable map.</small></a><a href="controllers.html">Controllers <span>↗</span><small>Motion control and encoder sensing.</small></a><a href="experiments.html">Experiments <span>↗</span><small>Matched simulation and field trials.</small></a></div></section>
+ <section class="publication" id="publication"><div><span class="eyebrow">Publication</span><h2>A platform for comparison.</h2><p class="caption">Paper details, author links, and final datasets can be added here.</p></div><dl><dt>Paper</dt><dd>Title to be added</dd><dt>Authors</dt><dd>Author names · Institution</dd><dt>Venue</dt><dd>Publication details to be added</dd><dt>Resources</dt><dd>Paper · Code · Dataset — links forthcoming</dd></dl></section>
+</main>
+
+<footer class="site-footer"><div class="footer-inner"><span class="footer-brand">HAMR / CASTER MOBILITY RESEARCH</span><span>Academic project template · Simulation visuals</span><div class="footer-links"><a href="index.html#publication">Publication</a><a href="index.html#hardware">Hardware</a><a href="#main">Back to top ↑</a></div></div></footer><script src="assets/site.js"></script><script src="assets/vendor/three.min.js"></script><script src="assets/robot-viewer.js"></script></body></html>
